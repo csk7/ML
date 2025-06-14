@@ -23,6 +23,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 dataiter = iter(trainloader)
 images = next(dataiter)
 
+
 num_samples = 25
 sample_images = [images[0][i,0] for i in range(num_samples)]
 #Show all in a 5x5 grid
@@ -31,7 +32,8 @@ for i in range(num_samples):
     plt.subplot(5,5,i+1)
     plt.imshow(sample_images[i].numpy().squeeze(), cmap='gray_r')
 
-path = os.path.join(os.getcwd(), 'img')
+script_dir = os.path.dirname(os.path.abspath(__file__))
+path = os.path.join(script_dir, 'img')
 os.makedirs(path, exist_ok=True)
 plt.savefig(os.path.join(path, 'mnist.png'))
 plt.close()
@@ -45,17 +47,17 @@ class VAE(nn.Module):
             nn.LeakyReLU(0.2),
             nn.Linear(hidden_size, hidden_size),
             nn.LeakyReLU(0.2),
-            nn.Linear(hidden_size, latent_size),
+            nn.Linear(hidden_size, hidden_size),
             nn.LeakyReLU(0.2),
         )
 
-        self.meanLayer = nn.Linear(latent_size, 2)
-        self.logVarLayer = nn.Linear(latent_size, 2)
+        self.meanLayer = nn.Linear(hidden_size, latent_size)
+        self.logVarLayer = nn.Linear(hidden_size, latent_size)
         
         self.decoder = nn.Sequential(
-            nn.Linear(2, latent_size),
+            nn.Linear( latent_size, hidden_size),
             nn.LeakyReLU(0.2),
-            nn.Linear(latent_size, hidden_size),
+            nn.Linear(hidden_size, hidden_size),
             nn.LeakyReLU(0.2),
             nn.Linear(hidden_size, input_size),
             nn.Sigmoid(),
@@ -93,6 +95,8 @@ def loss_function(x, x_res, mean, logVar):
 
 batchSize = 32
 inputDim = 784
+
+
 def train(model, trainloader, optimizer, loss_function, epochs=10):
     model.train()
     for epoch in range(epochs):
@@ -106,21 +110,36 @@ def train(model, trainloader, optimizer, loss_function, epochs=10):
             overall_loss += loss.item()
             loss.backward()
             optimizer.step()
-        print(f"Epcoh : {epoch} ; Loss : {overall_loss}")
+        print(f"Epcoh : {epoch} ; Loss : {overall_loss/(batchSize*batch_idx)}")
     return overall_loss
 
 train(model = model, trainloader= trainloader, optimizer= optimizer, 
     loss_function=loss_function)
 
-def generate_digit(mean, variance):
-    z_sample = torch.tensor([mean, variance], dtype = torch.float).to(device)
+def generate_digit(mean, variance, num_samples = 1, latent_size = 200, file_name='mnist_generated.png'):
+    std = torch.sqrt(torch.tensor(variance, dtype = torch.float).to(device))
+    normalDistribution = torch.distributions.Normal(mean, std)
+    z_sample = normalDistribution.sample((num_samples, latent_size))
+    z_sample = z_sample.to(device)
+    
     model.eval()
     x_decoded = model.decode(z_sample)
+    model.train()
+    
     digit = x_decoded.detach().cpu().reshape(28,28)
-    plt.open()
     plt.imshow(digit, cmap ='gray')
     plt.axis('off')
-    plt.savefig('./img/mnist_reconstructed.png')
+    
+    # Get the directory of the script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(script_dir, 'img')
+    os.makedirs(path, exist_ok=True)
+    save_path = os.path.join(path, file_name)
+    plt.savefig(save_path)
     plt.close()
 
-generate_digit(0.0, 1.0)
+generate_digit(0.0, 1.0, num_samples=1, latent_size=200, file_name='mnist_generated.png')
+
+def plot_latent_space(model, scale = 1.0, n=25, digit_size=28, figsize=15):
+    figure = np.zeros
+    
