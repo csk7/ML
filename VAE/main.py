@@ -8,7 +8,7 @@ from inference.inference_functions import generate_digit, plot_latent_space
 from utils.nn_model_tools import load_model
 from utils.global_variables import GLOBAL_INFO
 from utils.input_visual import show_input_data
-from data.data import trainloader
+from utils.data import trainloader
 
 ###Model, loss function and optimizer###
 #model

@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from data.data import trainloader  
+from utils.data import trainloader  
 ###Visualize input data###
 def show_input_data(file_location):
     """

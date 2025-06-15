@@ -1,7 +1,7 @@
 # Data and generated files
 data/
 img/
-model_checkpoint.pth
+vae_model.pth
 
 # Python cache and compiled files
 __pycache__/
