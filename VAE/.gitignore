@@ -1,3 +1,9 @@
 # Data and generated files
 data/
 img/
+model_checkpoint.pth
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
