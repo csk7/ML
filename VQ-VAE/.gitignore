@@ -1,0 +1,10 @@
+# Data and generated files
+results/
+model/
+data/
+
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
