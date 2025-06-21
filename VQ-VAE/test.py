@@ -31,3 +31,9 @@ def test(model, optimizer):
         # Create side by side comparison (first 8 images)
         comparison = torch.cat([data[:8], output[:8]])
         save_image_grid(comparison, os.path.join(path, 'comparison.png'), nrow=8, title='Input (top) vs Reconstructed (bottom)')
+
+        #Random Codebook
+        embeddings = model.VQ.embeddings.weight.clone()
+        embeddings = embeddings.unsqueeze(1).unsqueeze(1)
+        
+        save_image_grid(embeddings, os.path.join(path, 'codebook.png'), nrow=8, title='Codebook')
