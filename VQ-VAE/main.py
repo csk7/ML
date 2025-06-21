@@ -14,11 +14,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    num_epochs = 10
+    num_epochs = 32
 
     model = VQVAE(hidden_channels=64, in_channels=3, embedding_size=64, n_layers=8)
     model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = optim.Adam(model.parameters(), lr=2e-4)
 
     #Training
     if (args.mode == 'train'):

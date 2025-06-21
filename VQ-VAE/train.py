@@ -4,6 +4,7 @@ from utils import save_model
 ##Training##
 def train(model, trainloader, optimizer, loss_function, num_epochs=10, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")):
     for epoch in range(num_epochs):
+        epoch_loss = 0.0
         for i, data in enumerate(trainloader):
             optimizer.zero_grad()
             input, _ = data[0].to(device), data[1].to(device)
@@ -15,6 +16,8 @@ def train(model, trainloader, optimizer, loss_function, num_epochs=10, device=to
                 print(f'Epoch [{epoch+1}/{num_epochs}], Step [{i+1}/{len(trainloader)}], Loss: {loss.item():.4f}')
                 print(f"Reconstruction loss: {loss_dict['reconstruction_loss'].item():.4f}, Commitment loss: {loss_dict['commitment_loss'].item():.4f}, \
                     Codebook loss: {loss_dict['codebook_loss'].item():.4f}")
-        save_model(model, optimizer, epoch, loss.item())
+            epoch_loss += loss.item()
+        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss/len(trainloader):.4f}")
+        save_model(model, optimizer, epoch, epoch_loss/len(trainloader))
 
 

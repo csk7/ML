@@ -8,11 +8,13 @@ class VQ(nn.Module):
         VQ class
         params num_embeddings: number of embeddings (K)
         params embed_dim: embedding dimension (D)
+        params commitment_cost: commitment cost
         """
         super(VQ, self).__init__()
         self.commitment_cost = commitment_cost
         self.embeddings = nn.Embedding(num_embeddings, embed_dim)
-        
+        self.embeddings.weight.data.uniform_(-1.0 / num_embeddings, 1.0 / num_embeddings)
+
     def forward(self, x):
         """
         Forward pass
@@ -87,7 +89,7 @@ class Decoder(nn.Module):
             nn.ConvTranspose2d(in_channels=hidden_channels, out_channels=hidden_channels, kernel_size=3, stride=1, padding=1),
             nn.LeakyReLU(0.2),
             nn.ConvTranspose2d(in_channels=hidden_channels, out_channels=out_channels, kernel_size=3, stride=1, padding=1),
-            nn.Sigmoid(),
+            nn.Tanh(),
         )
     
     def forward(self, x):
