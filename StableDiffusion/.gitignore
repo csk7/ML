@@ -1,0 +1,11 @@
+#Ignore data and images folders
+/data
+/images
+
+#Ignore checkpoints
+/checkpoints
+
+#Ignore __pycache__ files
+__pycache__
+*.py[cod]
+*$py.class
