@@ -50,4 +50,8 @@ class VAE_AttentionBlock(nn.Module):
 class Decoder(nn.Module):
     def __init__(self, scale_up_comp = 4):
         super(Decoder, self).__init__()
+
+        self.block = nn.Sequential(
+            nn.Conv2d(in_channels=)
+        )
         
