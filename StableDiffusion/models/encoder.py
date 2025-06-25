@@ -32,7 +32,7 @@ class Encoder(nn.Module):
             VAE_ResidualBlock(in_channels=512//scale_down_comp, out_channels=512//scale_down_comp), #B, 4*C, H/8, W/8 --> B, 4*C, H/8, W/8
             
             VAE_AttentionBlock(channels=512//scale_down_comp), #B, 4*C, H/8, W/8 --> B, 4*C, H/8, W/8
-            nn.GroupNorm(num_groups=32, num_channels=512//scale_down_comp), #B, 4*C, H/8, W/8 --> B, 4*C, H/8, W/8
+            nn.GroupNorm(num_groups=32//scale_down_comp, num_channels=512//scale_down_comp), #B, 4*C, H/8, W/8 --> B, 4*C, H/8, W/8
             nn.SiLU(), #B, 4*C, H/8, W/8 --> B, 4*C, H/8, W/8
             
             nn.Conv2d(in_channels=512//scale_down_comp, out_channels=8, kernel_size=3, padding=1), #B, 4*C, H/8, W/8 --> B, 8, H/8, W/8

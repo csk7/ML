@@ -11,7 +11,7 @@ class SelfAttention(nn.Module):
         self.embed_dim = embed_dim
         self.head_dim = self.embed_dim // self.num_heads
 
-    def forward(self, x:torch.Tensor, causal_mask: bool) -> torch.Tensor:
+    def forward(self, x:torch.Tensor, causal_mask: bool=False) -> torch.Tensor:
         '''
         :params x: Input
         :params causal_mask: auto regressive property

@@ -1,3 +1,4 @@
+from turtle import forward
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -52,6 +53,46 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
 
         self.block = nn.Sequential(
-            nn.Conv2d(in_channels=)
+            nn.Conv2d(in_channels=4, out_channels=4, kernel_size=1, padding=0),
+            nn.Conv2d(in_channels=4, out_channels=512, kernel_size=3, padding=1),
+            VAE_ResidualBlock(in_channels=512//scale_up_comp, out_channels=512//scale_up_comp),
+            VAE_AttentionBlock(channels=512//scale_up_comp),
+            VAE_ResidualBlock(in_channels=512//scale_up_comp, out_channels=512//scale_up_comp),
+            VAE_ResidualBlock(in_channels=512//scale_up_comp, out_channels=512//scale_up_comp),
+            VAE_ResidualBlock(in_channels=512//scale_up_comp, out_channels=512//scale_up_comp),
+            VAE_ResidualBlock(in_channels=512//scale_up_comp, out_channels=512//scale_up_comp), #B, 512, H/8, W/8
+            nn.Upsample(scale_factor=2), #B,512,H/4,W/4 Just Replicate
+
+            nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1),
+            VAE_ResidualBlock(in_channels=512//scale_up_comp, out_channels=512//scale_up_comp),
+            VAE_ResidualBlock(in_channels=512//scale_up_comp, out_channels=512//scale_up_comp),
+            VAE_ResidualBlock(in_channels=512//scale_up_comp, out_channels=512//scale_up_comp),
+            VAE_ResidualBlock(in_channels=512//scale_up_comp, out_channels=512//scale_up_comp), #B, 512, H/4, W/4
+            nn.Upsample(scale_factor=2), #B,512,H/2,W/2 Just Replicate
+
+            nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1),
+            VAE_ResidualBlock(in_channels=512//scale_up_comp, out_channels=256//scale_up_comp),
+            VAE_ResidualBlock(in_channels=256//scale_up_comp, out_channels=256//scale_up_comp),
+            VAE_ResidualBlock(in_channels=256//scale_up_comp, out_channels=256//scale_up_comp),
+            VAE_ResidualBlock(in_channels=256//scale_up_comp, out_channels=256//scale_up_comp), #B, 256, H/2, W/2
+            nn.Upsample(scale_factor=2), #B,256,H,W Just Replicate
+
+            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, padding=1),
+            VAE_ResidualBlock(in_channels=256//scale_up_comp, out_channels=128//scale_up_comp),
+            VAE_ResidualBlock(in_channels=128//scale_up_comp, out_channels=128//scale_up_comp),
+            VAE_ResidualBlock(in_channels=128//scale_up_comp, out_channels=128//scale_up_comp),
+            VAE_ResidualBlock(in_channels=128//scale_up_comp, out_channels=128//scale_up_comp), #B, 128, H, W
+
+            nn.GroupNorm(num_groups=32//scale_up_comp, num_channels=128//scale_up_comp),
+            nn.SiLU(),
+            nn.Conv2d(in_channels=256, out_channels=3, kernel_size=3, padding=1) #B, 3, H/4, W/4
+
         )
         
+    def forward(self, x:torch.Tensor) -> torch.Tensor:
+        '''
+        :params x:input (B, 4, H/8, W/8)
+        :returns output: decoder output
+        '''
+        x /=  0.18215
+        return self.block(x)
