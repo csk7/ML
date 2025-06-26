@@ -47,4 +47,41 @@ class SelfAttention(nn.Module):
         return output
 
 
+class CrossAttention(nn.Module):
+    def __init__(self, num_heads:int, n_embed:int, n_embed_clip = 786):
+        super(CrossAttention,self).__init__()
+        self.query = nn.Linear(n_embed, n_embed, bias=True)
+        self.key = nn.Linear(n_embed_clip, n_embed, bias = True)
+        self.value = nn.Linear(n_embed_clip, n_embed, bias = True)
+        self.num_heads = num_heads
+        self.embed_per_head = n_embed // num_heads
+        
+def forward(self, features, context):
+    '''
+    :params features: B, H*W, n_embed
+    :params context: B, T, n_embed_clip T=77
+    '''
+    B, H_W, C = features.shape
+    B, T, Cclip = context.shape
+    q = self.query(features) #B, H*W, n_embed
+    k = self.key(context) #B, T, n_embed
+    v = self.value(context) #B, T, n_embed
+
+    q=q.view(B,H_W,self.num_heads,self.embed_per_head).transpose(1,2) #B,nH,H_W,Ch
+    k=k.view(B,T,self.num_heads,self.embed_per_head).transpose(1,2) #B,nH,T,Ch
+    v=v.view(B,T,self.num_heads,self.embed_per_head).transpose(1,2) #B,nH,T,Ch
+
+    weight = torch.matmul(q,k.transpose(-1,-2)) // torch.sqrt(self.embed_per_head) #B,nH,H_W,T
+    weight = F.softmax(weight, dim=-1)
+
+    weight = torch.matmul(weight,v) #B,nH,H_W,Ch
+
+    weight = weight.transpose(1,2).reshape(B,H_W,C)
+
+    return weight
+
+
+
+
+
 

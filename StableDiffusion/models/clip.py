@@ -32,7 +32,7 @@ class CLIPLayer(nn.Module):
         self.ff2 = nn.Linear(embedding_size*4, embedding_size)
         
 
-    def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         '''
         :params x: (B,T,C)
         :returns output: (B,T,C)
