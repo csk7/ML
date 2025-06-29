@@ -50,7 +50,7 @@ class CLIP(nn.Module):
         super(CLIP, self).__init__()
         self.embedding = CLIPEmbedding(vocab_size = 49408, embedding_size = 768, context_length = 77) #Pretraining
         self.block = nn.Sequential(
-            *[CLIPLayer(num_heads = 12, embedding_size = 768) for i in range(num_layers)],
+            *[CLIPLayer(num_heads = 12, embedding_size = 768) for _ in range(num_layers)],
         )
 
         self.lastNorm = nn.LayerNorm(768)

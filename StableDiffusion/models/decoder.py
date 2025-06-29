@@ -92,7 +92,7 @@ class Decoder(nn.Module):
     def forward(self, x:torch.Tensor) -> torch.Tensor:
         '''
         :params x:input (B, 4, H/8, W/8)
-        :returns output: decoder output
+        :returns output: decoder output [B, C, H, W]
         '''
         x /=  0.18215
         return self.block(x)
