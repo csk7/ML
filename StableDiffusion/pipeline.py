@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.modules import padding
 import tqdm
-from DDPM import ddpm_sampler
+from ddpm import ddpm_sampler
 
 #Global Parameters#
 HEIGHT = 512
@@ -60,7 +60,7 @@ def generate(prompt:str, uncond_prompt:str, input_image=None, strength=0.1, do_c
 
         #Now we need to sample from the random noise distribution
         if(sampler_name == "ddpm"):
-            sampler = DDPMSampler(Generator)
+            sampler = ddpm_sampler(Generator)
             sampler.set_inference_steps(n_inference_steps)
         else:
             raise ValueError(f"Sample not found{sampler_name}")
