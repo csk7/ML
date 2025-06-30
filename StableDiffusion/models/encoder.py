@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from models.residual_block import VAE_ResidualBlock, VAE_AttentionBlock
+from models.decoder import VAE_ResidualBlock, VAE_AttentionBlock
 class Encoder(nn.Module):
-    def __init__(self, scale_down_comp = 4):
+    def __init__(self, scale_down_comp = 1):
         super(Encoder, self).__init__()
         self.encoder = nn.Sequential(
             
@@ -32,12 +32,13 @@ class Encoder(nn.Module):
             VAE_ResidualBlock(in_channels=512//scale_down_comp, out_channels=512//scale_down_comp), #B, 4*C, H/8, W/8 --> B, 4*C, H/8, W/8
             
             VAE_AttentionBlock(channels=512//scale_down_comp), #B, 4*C, H/8, W/8 --> B, 4*C, H/8, W/8
+            VAE_ResidualBlock(in_channels=512//scale_down_comp, out_channels=512//scale_down_comp), #B, 4*C, H/8, W/8 --> B, 4*C, H/8, W/8
+            
             nn.GroupNorm(num_groups=32//scale_down_comp, num_channels=512//scale_down_comp), #B, 4*C, H/8, W/8 --> B, 4*C, H/8, W/8
             nn.SiLU(), #B, 4*C, H/8, W/8 --> B, 4*C, H/8, W/8
             
             nn.Conv2d(in_channels=512//scale_down_comp, out_channels=8, kernel_size=3, padding=1), #B, 4*C, H/8, W/8 --> B, 8, H/8, W/8
             nn.Conv2d(in_channels=8, out_channels=8, kernel_size=3, padding=1), #B, 8, H/8, W/8 --> B, 8, H/8, W/8
-            nn.Conv2d(in_channels=8, out_channels=8, kernel_size=1, padding=0), #B, 8, H/8, W/8 --> B, 8, H/8, W/8
         )
 
     def forward(self, x: torch.Tensor, noise: torch.Tensor) -> torch.Tensor:
@@ -59,4 +60,4 @@ class Encoder(nn.Module):
 
         #Scaling Constant
         z = z * 0.18215
-        return z, mean, variance
+        return z

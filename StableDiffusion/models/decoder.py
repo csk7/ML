@@ -15,7 +15,7 @@ class VAE_ResidualBlock(nn.Module):
             nn.SiLU(),
             nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=3, stride=1, padding=1),
         )
-        self.residual = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=1, padding=0) if(in_channels != out_channels) else nn.Identity(),
+        self.residual = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=1, padding=0) if(in_channels != out_channels) else nn.Identity()
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -26,10 +26,10 @@ class VAE_ResidualBlock(nn.Module):
         return self.block(x) + self.residual(x)
 
 class VAE_AttentionBlock(nn.Module):
-    def __init__(self, channels:int = 32):
+    def __init__(self, channels:int = 512):
         super(VAE_AttentionBlock, self).__init__()
         self.group_norm = nn.GroupNorm(num_groups=32, num_channels=channels)
-        self.attn = SelfAttention(num_heads=channels)
+        self.attn = SelfAttention(num_heads=1, embed_dim=channels)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -49,14 +49,14 @@ class VAE_AttentionBlock(nn.Module):
         return x + residual
 
 class Decoder(nn.Module):
-    def __init__(self, scale_up_comp = 4):
+    def __init__(self, scale_up_comp = 1):
         super(Decoder, self).__init__()
 
         self.block = nn.Sequential(
             nn.Conv2d(in_channels=4, out_channels=4, kernel_size=1, padding=0),
             nn.Conv2d(in_channels=4, out_channels=512, kernel_size=3, padding=1),
             VAE_ResidualBlock(in_channels=512//scale_up_comp, out_channels=512//scale_up_comp),
-            VAE_AttentionBlock(channels=512//scale_up_comp),
+            VAE_AttentionBlock(channels=512),
             VAE_ResidualBlock(in_channels=512//scale_up_comp, out_channels=512//scale_up_comp),
             VAE_ResidualBlock(in_channels=512//scale_up_comp, out_channels=512//scale_up_comp),
             VAE_ResidualBlock(in_channels=512//scale_up_comp, out_channels=512//scale_up_comp),
@@ -85,7 +85,7 @@ class Decoder(nn.Module):
 
             nn.GroupNorm(num_groups=32//scale_up_comp, num_channels=128//scale_up_comp),
             nn.SiLU(),
-            nn.Conv2d(in_channels=256, out_channels=3, kernel_size=3, padding=1) #B, 3, H/4, W/4
+            nn.Conv2d(in_channels=128, out_channels=3, kernel_size=3, padding=1) #B, 3, H/4, W/4
 
         )
         

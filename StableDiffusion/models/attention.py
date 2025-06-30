@@ -1,7 +1,6 @@
 from turtle import forward
 import torch
 import torch.nn as nn
-
 class SelfAttention(nn.Module):
     def __init__(self, num_heads:int = 8, embed_dim: int = 32):
         super(SelfAttention, self).__init__()
@@ -32,9 +31,9 @@ class SelfAttention(nn.Module):
         q = q.transpose(1,2)
         v = v.transpose(1,2)
 
-        weights = torch.matmul(q, k.transpose(-1,-2)) // torch.sqrt(self.head_dim)  #B,(C/H),T,H @ B,(C/H),H,T ---> B,(C/H),T,T
+        weights = torch.matmul(q, k.transpose(-1,-2)) / (self.head_dim ** 0.5)  #B,(C/H),T,H @ B,(C/H),H,T ---> B,(C/H),T,T
         if(causal_mask):
-            self.register_buffer("mask", torch.triu(torch.ones_like(input = weights, device=device),diagonal=1))
+            mask = torch.ones_like(weights, dtype=torch.bool).triu(1) 
             weights = weights.masked_fill(mask, -torch.inf)
 
         weights = weights.softmax(dim = -1)
@@ -56,29 +55,29 @@ class CrossAttention(nn.Module):
         self.num_heads = num_heads
         self.embed_per_head = n_embed // num_heads
         
-def forward(self, features, context):
-    '''
-    :params features: B, H*W, n_embed
-    :params context: B, T, n_embed_clip T=77
-    '''
-    B, H_W, C = features.shape
-    B, T, Cclip = context.shape
-    q = self.query(features) #B, H*W, n_embed
-    k = self.key(context) #B, T, n_embed
-    v = self.value(context) #B, T, n_embed
+    def forward(self, features, context):
+        '''
+        :params features: B, H*W, n_embed
+        :params context: B, T, n_embed_clip T=77
+        '''
+        B, H_W, C = features.shape
+        B, T, Cclip = context.shape
+        q = self.query(features) #B, H*W, n_embed
+        k = self.key(context) #B, T, n_embed
+        v = self.value(context) #B, T, n_embed
 
-    q=q.view(B,H_W,self.num_heads,self.embed_per_head).transpose(1,2) #B,nH,H_W,Ch
-    k=k.view(B,T,self.num_heads,self.embed_per_head).transpose(1,2) #B,nH,T,Ch
-    v=v.view(B,T,self.num_heads,self.embed_per_head).transpose(1,2) #B,nH,T,Ch
+        q=q.view(B,H_W,self.num_heads,self.embed_per_head).transpose(1,2) #B,nH,H_W,Ch
+        k=k.view(B,T,self.num_heads,self.embed_per_head).transpose(1,2) #B,nH,T,Ch
+        v=v.view(B,T,self.num_heads,self.embed_per_head).transpose(1,2) #B,nH,T,Ch
 
-    weight = torch.matmul(q,k.transpose(-1,-2)) // torch.sqrt(self.embed_per_head) #B,nH,H_W,T
-    weight = F.softmax(weight, dim=-1)
+        weight = torch.matmul(q,k.transpose(-1,-2)) / (self.embed_per_head ** 0.5) #B,nH,H_W,T
+        weight = weight.softmax(dim=-1)
 
-    weight = torch.matmul(weight,v) #B,nH,H_W,Ch
+        weight = torch.matmul(weight,v) #B,nH,H_W,Ch
 
-    weight = weight.transpose(1,2).reshape(B,H_W,C)
+        weight = weight.transpose(1,2).reshape(B,H_W,C)
 
-    return weight
+        return weight
 
 
 

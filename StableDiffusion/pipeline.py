@@ -10,8 +10,8 @@ from ddpm import ddpm_sampler
 #Global Parameters#
 HEIGHT = 512
 WIDTH = 512
-LATENT_HEIGHT = 512/8
-LATENT_WIDTH = 512/8
+LATENT_HEIGHT = 512//8
+LATENT_WIDTH = 512//8
 
 def generate(prompt:str, uncond_prompt:str, input_image=None, strength=0.1, do_cfg=True, cfg_scale=7.5, sampler_name="ddpm",
     n_inference_steps=50, models={},seed=None, device=None, idle_device=None, tokenizer=None):
@@ -42,11 +42,11 @@ def generate(prompt:str, uncond_prompt:str, input_image=None, strength=0.1, do_c
         if(do_cfg):
             #Convert prompt to tokens
             cond_tokens = tokenizer.batch_encode_plus([prompt], padding="max_length", max_length=77).input_ids #1,T
-            cond_tokens = torch.tensor(cond_tokens, dtype = torch.LongTensor, device=device)
+            cond_tokens = torch.tensor(cond_tokens, dtype = torch.long, device=device)
             cond_context = clip(cond_tokens) #1,T,C
             #Convert Negative prompt to tokens
             uncond_tokens = tokenizer.batch_encode_plus([uncond_prompt], padding="max_length", max_length=77).input_ids #I,T
-            uncond_tokens = torch.tensor(uncond_tokens, dtype=torch.LongTensor, device=device)
+            uncond_tokens = torch.tensor(uncond_tokens, dtype=torch.long, device=device)
             uncond_context = clip(uncond_tokens)
 
             context = torch.cat([cond_context, uncond_context],dim=0) #(1,T,C) , (1,T,C) --> (2, T, C)
@@ -60,7 +60,7 @@ def generate(prompt:str, uncond_prompt:str, input_image=None, strength=0.1, do_c
 
         #Now we need to sample from the random noise distribution
         if(sampler_name == "ddpm"):
-            sampler = ddpm_sampler(Generator)
+            sampler = ddpm_sampler(generator)
             sampler.set_inference_steps(n_inference_steps)
         else:
             raise ValueError(f"Sample not found{sampler_name}")
@@ -76,7 +76,7 @@ def generate(prompt:str, uncond_prompt:str, input_image=None, strength=0.1, do_c
             input_image_tensor = torch.tensor(input_image_tensor, dtype = torch.float32) #numpy to tensor
             input_image_tensor = rescale(input_image_tensor, (0,255),(-1,1)) #rescale tensor H,W,C
             input_image_tensor = torch.unsqueeze(input_image_tensor,0) #1,H,W,C
-            input_image_tensor = torch.permute(0,3,1,2)
+            input_image_tensor = input_image_tensor.permute(0,3,1,2)
 
             #Randomly sampling from the latent space(reparametrization trick)
             encoder_noise = torch.randn(latent_shape, generator=generator, device=device)
@@ -84,7 +84,7 @@ def generate(prompt:str, uncond_prompt:str, input_image=None, strength=0.1, do_c
 
             #The sampler must know how much noise should be added every step in DDPM. If strenght = 1 then Fully noise added. More creative model.
             sampler.set_strength(strength) 
-            latent_image = sampler.add_noise(latents, sampler.timesteps[0])
+            latent_image = sampler.add_noise(latent_image, sampler.timesteps[0])
             to_idle(encoder)
 
         else:
@@ -98,7 +98,7 @@ def generate(prompt:str, uncond_prompt:str, input_image=None, strength=0.1, do_c
         #There is total time steps, n_inference steps, If total_training_steps = 1000 and inference step = 50, Then we do DDPM for 1000, 980, 960..0
         #If both are 50 then we do for 50,49,48...1. so timesteps in above cases = [1000, 980...1]. Timesteps encodes and put into embedding. Essentially we jump and try to predict all the noise
 
-        timesteps = tqdm(sampler.timesteps)
+        timesteps = tqdm.tqdm(sampler.timesteps)
         for i, timestep in enumerate(timesteps):
             #Time Embedding - A Number to vector of [1,320]
             time_embedding = get_time_embedding(timestep).to(device)
@@ -131,7 +131,7 @@ def generate(prompt:str, uncond_prompt:str, input_image=None, strength=0.1, do_c
         to_idle(decoder)
 
         images = rescale(images, (-1,1), (0,255))
-        images = images.unsqueeze(0).permute(1,2,0)
+        images = images.squeeze(0).permute(1,2,0)
         images = images.to('cpu', torch.uint8).numpy() #need to convert it to H,W,C for CPU
         return images
 

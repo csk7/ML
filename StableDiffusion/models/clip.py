@@ -1,7 +1,5 @@
-from turtle import forward
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from models.attention import SelfAttention
 
@@ -24,11 +22,11 @@ class CLIPLayer(nn.Module):
     def __init__(self, num_heads = 12, embedding_size = 768):
         super(CLIPLayer, self).__init__()
         
-        self.ln_1 = nn.LayerNorm(num_channels=embedding_size),
+        self.ln_1 = nn.LayerNorm(embedding_size)
         self.mha = SelfAttention(num_heads=num_heads, embed_dim= embedding_size) #B, T, C ---> B, T, C
 
-        self.ln_2 = nn.LayerNorm(num_channels=embedding_size),
-        self.ff1 = nn.Linear(embedding_size, embedding_size*4), 
+        self.ln_2 = nn.LayerNorm(embedding_size)
+        self.ff1 = nn.Linear(embedding_size, embedding_size*4) 
         self.ff2 = nn.Linear(embedding_size*4, embedding_size)
         
 
@@ -66,4 +64,3 @@ class CLIP(nn.Module):
         output = self.lastNorm(output) #B,T,C --> B,T,C
 
         return output
-

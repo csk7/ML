@@ -7,12 +7,12 @@ import torch.nn.functional as F
 from models.attention import SelfAttention, CrossAttention
 #----------------Time Embedding---------------
 class TimeEmbeddding(nn.Module):
-    def __init__(self, n_dim :int = 32):
+    def __init__(self, n_dim :int = 320):
         super(TimeEmbeddding,self).__init__()
         self.block = nn.Sequential(
             nn.Linear(n_dim, 4*n_dim),
             nn.SiLU(),
-            nn.Linear(4*n_dim , dim)
+            nn.Linear(4*n_dim , 4*n_dim)
         )
 
     def forward(self, x):
@@ -39,7 +39,7 @@ class SwitchSequential(nn.Module):
         for layer in self.block:
             if(isinstance(layer,UnetAttentionBlock)):
                 x = layer(x, context)
-            elif(isintance(layer,UnetResidualBlock)):
+            elif(isinstance(layer,UnetResidualBlock)):
                 x = layer(x, time)
             else:
                 x = layer(x)
@@ -47,9 +47,9 @@ class SwitchSequential(nn.Module):
         return x
 
 class Upsample(nn.Module):
-    def __init__(self, channels : int = 32):
+    def __init__(self, n_channels : int = 32):
         super().__init__()
-        self.conv = nn.Conv2d(in_channels=channels, out_channels=32, kernel_size=3, padding=1)
+        self.conv = nn.Conv2d(in_channels=n_channels, out_channels=n_channels, kernel_size=3, padding=1)
 
 
     def forward(self, x):
@@ -78,23 +78,23 @@ class UnetOutput(nn.Module):
 
 class UnetResidualBlock(nn.Module):
     def __init__(self, in_channels: int, out_channels:int, n_time:int = 1280):
-        super().__init()
+        super(UnetResidualBlock, self).__init__()
         self.FeatureBlock = nn.Sequential(
-            nn.GroupNorm(num_groups = 32, num_channels = in_channels),
+            nn.GroupNorm(32, in_channels),
             nn.SiLU(),
             nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=3, padding = 1)
         )
         self.TimeBlock = nn.Sequential(
             nn.SiLU(),
-            nn.Linear(n_dim, out_channels)
+            nn.Linear(n_time, out_channels)
         )
         self.MergedBlock = nn.Sequential(
-            nn.GroupNorm(num_groups = 32, num_channels=out_channels),
+            nn.GroupNorm(32, out_channels),
             nn.SiLU(),
             nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=3, padding=1)
         )
 
-        if(n_channels!=out_channels):
+        if(in_channels!=out_channels):
             self.residualLayer = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=3, padding=1)
         else:
             self.residualLayer = nn.Identity()
@@ -102,7 +102,7 @@ class UnetResidualBlock(nn.Module):
     def forward(self, feature:torch.Tensor, time:torch.Tensor):
         '''
         :params feature: B. Cin, H, W
-        :params time   : 1,n_dim
+        :params time   : 1,n_time --> 1, 1280
         :returns output: B, Cout, H, W
         '''
         feature_out = self.FeatureBlock(feature) #B,Cin,H,W ---> B,Cout,H,W
@@ -112,9 +112,9 @@ class UnetResidualBlock(nn.Module):
 
 
 class UnetAttentionBlock(nn.Module):
-    def __init__(self, num_heads:int, n_embed:int, d_embed = 768): 
+    def __init__(self, num_heads:int, dim:int, d_embed = 768): 
         super().__init__()
-        channels = num_heads*n_embed
+        channels = num_heads*dim
         
         self.init_block = nn.Sequential(
             nn.GroupNorm(num_groups=32, num_channels=channels),
@@ -123,13 +123,12 @@ class UnetAttentionBlock(nn.Module):
 
         self.self_attention_block = nn.Sequential(
             nn.LayerNorm(channels),
-            SelfAttention(num_heads=num_heads, embed_dim=n_embed)
+            SelfAttention(num_heads=num_heads, embed_dim=channels)
         )
 
-        self.cross_attention_block = nn.Sequential(
-            nn.LayerNorm(channels),
-            CrossAttention(num_heads=num_heads, n_embed = n_embed, d_embed_clip = d_embed)
-        )
+        self.layernorm_cros_attn = nn.LayerNorm(channels)
+        self.cross_attention_block = CrossAttention(num_heads=num_heads, n_embed = channels, n_embed_clip = d_embed)
+        
 
         self.FFN_1 = nn.Sequential(
             nn.LayerNorm(channels),
@@ -150,10 +149,11 @@ class UnetAttentionBlock(nn.Module):
 
         B, C, H, W = features.shape
         residual_short = features.view(B,C,H*W).transpose(-1,-2) #B,C,H,W --> B,H*W,C
-        features = self.self_attention_block(features)
+        features = self.self_attention_block(residual_short)
         features = residual_short + features
         
         residual_short = features
+        features = self.layernorm_cros_attn(features)
         features = self.cross_attention_block(features, context)
         features = residual_short + features
         
@@ -202,7 +202,7 @@ class UNET(nn.Module):
             UnetResidualBlock(1280, 1280)
         )
 
-        self.Decoder = nn.ModuleList(
+        self.decoder = nn.ModuleList([
             #B,1280,H/64,W/64 ; B,1280,H/64,W/64 ---> B, 1280, H/32, W/32
             SwitchSequential(UnetResidualBlock(in_channels = 2560, out_channels = 1280)),
             SwitchSequential(UnetResidualBlock(in_channels = 2560, out_channels = 1280)),
@@ -221,15 +221,32 @@ class UNET(nn.Module):
             #B, 640, H/16, W/16; B, 640, H/16, W/16 ---> B, 320, H/8, W/8
             SwitchSequential(UnetResidualBlock(in_channels = 960, out_channels = 320), UnetAttentionBlock(num_heads=8, dim = 40)),
             SwitchSequential(UnetResidualBlock(in_channels = 640, out_channels = 320), UnetAttentionBlock(num_heads=8, dim = 40)),
-            SwitchSequential(UnetResidualBlock(in_channels = 640, out_channels = 320), UnetAttentionBlock(num_heads=8, dim = 40), Upsample(n_channels = 320)),
+            SwitchSequential(UnetResidualBlock(in_channels = 640, out_channels = 320), UnetAttentionBlock(num_heads=8, dim = 40)),
 
-        )
+        ])
+
+    def forward(self, x: torch.Tensor, context: torch.Tensor, time: torch.Tensor):
+        '''
+        x : [B,8,64,64], context: [B,T=77,C=786] time: [1,1280]]
+        '''
+        skip_connections = []
+        for layer in self.encoder:
+            x = layer(x, context, time)
+            skip_connections.append(x)
+
+        x = self.bottleneck(x, context, time)
+
+        for layer in self.decoder:
+            x = torch.cat([x,skip_connections.pop()], dim = 1)
+            x = layer(x, context, time)
+
+        return x
 #--------------------------------------
 
 class Diffusion(nn.Module):
     def __init__(self):
         super(Diffusion, self).__init__()
-        self.time_embedding = TimeEmbeddding(in_size = 320) #1,320 ---> 1,1280
+        self.time_embedding = TimeEmbeddding(n_dim = 320) #1,320 ---> 1,1280
         self.Unet = UNET() #Latent_Noise, Time
         self.Unet_output = UnetOutput(320, 4) #To go from output of Unet size to noise size
 
@@ -241,7 +258,7 @@ class Diffusion(nn.Module):
         :output: Noise prediction of each step B,  4, H/8, W/8
         '''
 
-        x = self.time_embedding(x) #(1,320) ---> (1,1280)
+        time = self.time_embedding(time) #(1,320) ---> (1,1280)
         x = self.Unet(x, context, time) #(B, 4, H/8, W/8); (B, T, C), (1,1280) ---> (B, 320, H/8, W/8)
         x = self.Unet_output(x)
 
